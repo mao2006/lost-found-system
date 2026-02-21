@@ -1,7 +1,7 @@
 'use client'
 
 import { animate } from 'animejs'
-import { Button, Card, Checkbox, Flex, Form, Input } from 'antd'
+import { Button, Card, Flex, Form, Input, message } from 'antd'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
@@ -33,6 +33,14 @@ function LoginPage() {
       animations.forEach(animation => animation.cancel())
     }
   }, [])
+
+  const handleLoginSuccess = () => {
+    message.success({
+      content: '登录成功，正在进入系统',
+      duration: 1,
+      onClose: () => router.push('/homepage'),
+    })
+  }
 
   return (
     <div
@@ -81,7 +89,7 @@ function LoginPage() {
               layout="vertical"
               requiredMark={false}
               colon={false}
-              onFinish={() => {}}
+              onFinish={handleLoginSuccess}
             >
               <Form.Item
                 label="账号"
@@ -112,7 +120,6 @@ function LoginPage() {
                   size="large"
                   block
                   className="h-12"
-                  onClick={() => router.push('/homepage')}
                 >
                   登录
                 </Button>
