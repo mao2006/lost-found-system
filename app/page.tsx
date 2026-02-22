@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 
 function Home() {
-  redirect('/login')
+  redirect('/query')
 }
 
 export default Home

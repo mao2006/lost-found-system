@@ -1,22 +1,21 @@
 'use client'
 
 import type { NavItem } from './types'
-import {
-  ExclamationCircleFilled,
-  HomeOutlined,
-  InboxOutlined,
-  LogoutOutlined,
-} from '@ant-design/icons'
-import { Button, Flex, message, Modal, Tooltip } from 'antd'
+import { ExclamationCircleFilled } from '@ant-design/icons'
+import { Button, Flex, message, Modal, Typography } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import FeedbackModal from './FeedbackModal'
+
+const { Title } = Typography
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'query', label: '查询信息', path: '/query' },
   { key: 'publish', label: '发布信息', path: '/publish' },
   { key: 'my-posts', label: '我的发布', path: '/my-posts' },
 ]
+
+const ACTION_BUTTON_CLASSNAME = 'rounded-lg !h-11 !px-4 !text-base !font-medium !text-blue-600 transition-none hover:!bg-transparent hover:!text-blue-600 active:!bg-transparent'
 
 function TopNav() {
   const router = useRouter()
@@ -27,10 +26,6 @@ function TopNav() {
     () => NAV_ITEMS.find(item => pathname.startsWith(item.path))?.key ?? null,
     [pathname],
   )
-
-  const goHomepage = () => {
-    router.push('/homepage')
-  }
 
   const handleLogout = () => {
     Modal.confirm({
@@ -52,59 +47,51 @@ function TopNav() {
       <Flex
         align="center"
         justify="space-between"
-        gap={8}
-        className="sticky top-0 z-20 border-b border-blue-100 bg-white/95 px-2 py-2 backdrop-blur sm:px-4"
+        gap={12}
+        className="sticky top-0 z-20 border-b border-blue-100 bg-white/95 px-3 py-3 backdrop-blur sm:px-6 sm:py-4"
       >
-        <Button
-          type="text"
-          shape="circle"
-          size="large"
-          aria-label="返回主页"
-          icon={<HomeOutlined />}
-          onClick={goHomepage}
-          className="!text-blue-600"
-        />
+        <Flex align="center" className="shrink-0" style={{ paddingInlineStart: 16 }}>
+          <Title level={3} className="!mb-0 !text-blue-700">
+            校园失物招领平台
+          </Title>
+        </Flex>
 
         <Flex
           align="center"
-          gap={4}
-          className="min-w-0 flex-1 overflow-x-auto px-1"
+          justify="center"
+          gap={6}
+          className="min-w-0 flex-1 overflow-x-auto px-3 py-1"
         >
           {NAV_ITEMS.map(item => (
             <Button
               key={item.key}
               type={activeNav === item.key ? 'primary' : 'text'}
+              size="large"
               onClick={() => router.push(item.path)}
-              className="shrink-0 rounded-lg"
+              className="shrink-0 rounded-lg !h-10 !px-5 !text-base"
             >
               {item.label}
             </Button>
           ))}
         </Flex>
 
-        <Flex align="center" gap={2}>
-          <Tooltip title="意见反馈">
-            <Button
-              type="text"
-              shape="circle"
-              size="large"
-              aria-label="意见反馈"
-              icon={<InboxOutlined />}
-              onClick={() => setFeedbackOpen(true)}
-              className="!text-blue-600"
-            />
-          </Tooltip>
-          <Tooltip title="退出登录">
-            <Button
-              type="text"
-              shape="circle"
-              size="large"
-              aria-label="退出登录"
-              icon={<LogoutOutlined />}
-              onClick={handleLogout}
-              className="!text-blue-600"
-            />
-          </Tooltip>
+        <Flex align="center" gap={4} className="shrink-0">
+          <Button
+            type="text"
+            size="large"
+            onClick={() => setFeedbackOpen(true)}
+            className={ACTION_BUTTON_CLASSNAME}
+          >
+            意见反馈
+          </Button>
+          <Button
+            type="text"
+            size="large"
+            onClick={handleLogout}
+            className={`${ACTION_BUTTON_CLASSNAME} !text-red-500 hover:!text-red-500`}
+          >
+            退出登录
+          </Button>
         </Flex>
       </Flex>
 

@@ -40,7 +40,7 @@ function LoginPage() {
     message.success({
       content: '登录成功，正在进入系统',
       duration: 1,
-      onClose: () => router.push('/homepage'),
+      onClose: () => router.push('/query'),
     })
   }
 
