@@ -6,9 +6,9 @@ import TopNav from '@/components/navigation/TopNav'
 
 function AuthedLayout({ children }: { children: ReactNode }) {
   return (
-    <Flex vertical className="min-h-[100dvh] bg-blue-50">
+    <Flex vertical className="h-[100dvh] overflow-hidden bg-blue-50">
       <TopNav />
-      <main className="w-full px-3 py-3 sm:px-5 sm:py-4">
+      <main className="min-h-0 w-full flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-4">
         {children}
       </main>
     </Flex>

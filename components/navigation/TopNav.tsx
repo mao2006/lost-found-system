@@ -48,7 +48,7 @@ function TopNav() {
         align="center"
         justify="space-between"
         gap={12}
-        className="sticky top-0 z-20 border-b border-blue-100 bg-white/95 px-3 py-3 backdrop-blur sm:px-6 sm:py-4"
+        className="z-20 shrink-0 border-b border-blue-100 bg-white/95 px-3 py-3 backdrop-blur sm:px-6 sm:py-4"
       >
         <Flex align="center" className="shrink-0" style={{ paddingInlineStart: 16 }}>
           <Title level={3} className="!mb-0 !text-blue-700">
