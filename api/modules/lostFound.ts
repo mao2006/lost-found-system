@@ -7,16 +7,14 @@ export type PostCampus = 'ZHAO_HUI' | 'PING_FENG' | 'MO_GAN_SHAN'
 export type PostStatus
   = 'PENDING'
     | 'APPROVED'
-    | 'MATCHED'
-    | 'CLAIMED'
+    | 'SOLVED'
     | 'CANCELLED'
     | 'REJECTED'
     | 'ARCHIVED'
 export type MyPostReviewStatus
   = 'PENDING'
     | 'APPROVED'
-    | 'MATCHED'
-    | 'CLAIMED'
+    | 'SOLVED'
     | 'CANCELLED'
     | 'REJECTED'
 
@@ -59,7 +57,6 @@ export interface PublishPostPayload {
   publish_type: PostPublishType
   item_name: string
   item_type: string
-  item_type_other: string
   campus: PostCampus
   location: string
   storage_location: string
@@ -67,7 +64,7 @@ export interface PublishPostPayload {
   features: string
   contact_name: string
   contact_phone: string
-  has_reward: boolean
+  has_reward?: boolean
   reward_description?: string
   images: string[]
 }
@@ -217,6 +214,17 @@ function toPageSize(value: unknown, fallback = 10) {
   return parsed > 50 ? 50 : parsed
 }
 
+function toQueryId(value: unknown) {
+  if (typeof value === 'number')
+    return String(Math.trunc(value))
+
+  return String(value || '').trim()
+}
+
+function toLimitedRequiredText(value: unknown, maxLength: number) {
+  return toText(value).slice(0, maxLength)
+}
+
 function resolvePostType(value: string): ItemPostType {
   const normalized = toText(value)
   const upper = normalized.toUpperCase()
@@ -234,7 +242,9 @@ function resolveLostFoundItemStatus(value: string, publishTypeValue?: string): I
   if (
     normalized === '已认领'
     || normalized === '已归还'
+    || normalized === '已解决'
     || upper === 'CLAIMED'
+    || upper === 'SOLVED'
     || upper === 'ARCHIVED'
   ) {
     return '已归还'
@@ -258,9 +268,13 @@ function resolveReviewStatus(value: string, statusText?: string): PublishReviewS
     || normalizedText === '已通过'
     || normalizedText === '已匹配'
     || normalizedText === '已认领'
+    || normalizedText === '已解决'
     || normalizedText === '已驳回'
     || normalizedText === '已取消'
   ) {
+    if (normalizedText === '已解决')
+      return '已认领'
+
     return normalizedText
   }
   if (normalizedText === '已归档')
@@ -273,8 +287,14 @@ function resolveReviewStatus(value: string, statusText?: string): PublishReviewS
     return '已通过'
   if (normalized === '2' || normalized === 'MATCHED')
     return '已匹配'
-  if (normalized === '3' || normalized === 'CLAIMED' || normalized === 'ARCHIVED')
+  if (
+    normalized === '3'
+    || normalized === 'CLAIMED'
+    || normalized === 'SOLVED'
+    || normalized === 'ARCHIVED'
+  ) {
     return '已认领'
+  }
   if (normalized === '4' || normalized === 'CANCELED' || normalized === 'CANCELLED')
     return '已取消'
   if (normalized === '5' || normalized === 'REJECTED')
@@ -403,11 +423,12 @@ export function getLostFoundList(params: LostFoundListParams = {}) {
 }
 
 export function getPostDetailData(postId: string | number) {
-  const id = String(postId).trim()
+  const id = toQueryId(postId)
 
   return request<LostFoundDetailData>({
-    url: `/post/detail/${encodeURIComponent(id)}`,
+    url: '/post/detail',
     method: 'GET',
+    params: { id },
   })
 }
 
@@ -431,18 +452,55 @@ export function getMyPostList(params: MyPostListParams = {}) {
 }
 
 export function publishPost(payload: PublishPostPayload) {
+  const normalizedPayload: PublishPostPayload = {
+    publish_type: payload.publish_type,
+    item_name: toLimitedRequiredText(payload.item_name, 50),
+    item_type: toLimitedRequiredText(payload.item_type, 20),
+    campus: payload.campus,
+    location: toLimitedRequiredText(payload.location, 100),
+    storage_location: toLimitedRequiredText(payload.storage_location, 100),
+    event_time: payload.event_time,
+    features: toLimitedRequiredText(payload.features, 255),
+    contact_name: toLimitedRequiredText(payload.contact_name, 30),
+    contact_phone: toLimitedRequiredText(payload.contact_phone, 20),
+    has_reward: !!payload.has_reward,
+    reward_description: payload.has_reward
+      ? toLimitedRequiredText(payload.reward_description, 255)
+      : '',
+    images: (payload.images || []).map(item => toText(item)).filter(Boolean).slice(0, 3),
+  }
+
   return request<PublishPostData>({
     url: '/post/publish',
     method: 'POST',
-    data: payload,
+    data: normalizedPayload,
   })
 }
 
 export function updateMyPost(payload: UpdateMyPostPayload) {
+  const normalizedPayload: UpdateMyPostPayload = {
+    post_id: payload.post_id,
+    item_name: toLimitedRequiredText(payload.item_name, 50),
+    item_type: toLimitedRequiredText(payload.item_type, 20),
+    item_type_other: toLimitedRequiredText(payload.item_type_other, 15),
+    campus: payload.campus,
+    location: toLimitedRequiredText(payload.location, 100),
+    storage_location: toLimitedRequiredText(payload.storage_location, 100),
+    event_time: payload.event_time,
+    features: toLimitedRequiredText(payload.features, 200),
+    contact_name: toLimitedRequiredText(payload.contact_name, 30),
+    contact_phone: toLimitedRequiredText(payload.contact_phone, 20),
+    has_reward: !!payload.has_reward,
+    reward_description: payload.has_reward
+      ? toLimitedRequiredText(payload.reward_description, 255)
+      : '',
+    images: (payload.images || []).map(item => toText(item)).filter(Boolean).slice(0, 3),
+  }
+
   return request<PostActionResult>({
     url: '/post/update',
     method: 'PUT',
-    data: payload,
+    data: normalizedPayload,
   })
 }
 
@@ -470,18 +528,22 @@ export function submitClaimRequest(payload: SubmitClaimPayload) {
     method: 'POST',
     data: {
       post_id: Number.isFinite(postId) ? postId : 0,
-      description: payload.detail.trim(),
-      proof_images: payload.photos.slice(0, 3),
+      description: toLimitedRequiredText(payload.detail, 500),
+      proof_images: payload.photos
+        .map(item => toText(item))
+        .filter(Boolean)
+        .slice(0, 255),
     },
   })
 }
 
 export function getClaimList(postId: string | number) {
-  const id = String(postId).trim()
+  const id = toQueryId(postId)
 
   return request<ClaimListData>({
-    url: `/claim/list/${encodeURIComponent(id)}`,
+    url: '/claim/list',
     method: 'GET',
+    params: { post_id: id },
   })
 }
 

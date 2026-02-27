@@ -84,10 +84,17 @@ function resolvePostId(postId?: string | number) {
 }
 
 export function getFeedbackRecords(params: FeedbackListParams = {}) {
+  const page = Math.max(1, Math.trunc(params.page || 1))
+  const pageSize = Math.min(50, Math.max(1, Math.trunc(params.page_size || 10)))
+
   return request<FeedbackListData>({
     url: '/feedback/my-list',
     method: 'GET',
-    params,
+    params: {
+      ...params,
+      page,
+      page_size: pageSize,
+    },
   }).then(result => result.list.map(mapFeedbackItemToRecord))
 }
 

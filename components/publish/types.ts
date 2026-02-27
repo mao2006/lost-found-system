@@ -5,8 +5,6 @@ export interface PublishFormValues {
   campus?: CampusCode
   itemType?: string
   location?: string
-  timeRange?: TimeRangeValue
-  status?: ItemStatus
   itemName?: string
   occurredAt?: string
   features?: string
@@ -21,8 +19,6 @@ export interface PublishDraft {
   campus?: CampusCode
   itemType?: string
   location?: string
-  timeRange?: TimeRangeValue
-  status?: ItemStatus
   itemName?: string
   occurredAt?: string
   features?: string

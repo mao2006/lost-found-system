@@ -41,7 +41,7 @@ const VALID_STATUS = new Set<ItemStatus>(
 const STATUS_TO_BACKEND_MAP: Record<ItemStatus, PostStatus> = {
   寻找中: 'APPROVED',
   待认领: 'APPROVED',
-  已归还: 'CLAIMED',
+  已归还: 'SOLVED',
 }
 
 function toPostPublishType(postType: ItemPostType) {

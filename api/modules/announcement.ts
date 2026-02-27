@@ -21,9 +21,16 @@ export interface AnnouncementListData {
 }
 
 export function getAnnouncementList(params: AnnouncementListParams = {}) {
+  const page = Math.max(1, Math.trunc(params.page || 1))
+  const pageSize = Math.min(50, Math.max(1, Math.trunc(params.page_size || 10)))
+
   return request<AnnouncementListData>({
     url: '/announcement/list',
     method: 'GET',
-    params,
+    params: {
+      ...params,
+      page,
+      page_size: pageSize,
+    },
   })
 }

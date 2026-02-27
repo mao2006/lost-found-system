@@ -2,21 +2,14 @@
 
 import type { PostCampus, PostPublishType } from '@/api/modules/lostFound'
 import type { PublishDraft, PublishFormValues } from '@/components/publish/types'
-import type { ItemPostType, ItemStatus, TimeRangeValue } from '@/components/query/types'
+import type { ItemPostType } from '@/components/query/types'
 import { Alert, Button, Card, Flex, Form, Input, message, Modal, Radio, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { CONTACT_PHONE_PATTERN, PUBLISH_DRAFT_STORAGE_KEY } from '@/components/publish/constants'
-import OtherTypeModal from '@/components/publish/OtherTypeModal'
 import PhotoUploader from '@/components/publish/PhotoUploader'
 import PublishFilters from '@/components/publish/PublishFilters'
 import PublishTypeSwitch from '@/components/publish/PublishTypeSwitch'
-import {
-  CAMPUS_OPTIONS,
-  ITEM_TYPE_OPTIONS,
-  ITEM_TYPE_OTHER_VALUE,
-  STATUS_OPTIONS,
-  TIME_RANGE_OPTIONS,
-} from '@/components/query/constants'
+import { CAMPUS_OPTIONS, ITEM_TYPE_OPTIONS, ITEM_TYPE_OTHER_VALUE } from '@/components/query/constants'
 import { usePublicConfigQuery } from '@/hooks/queries/usePublicQueries'
 import { usePublishPostMutation } from '@/hooks/queries/useUserPostQueries'
 
@@ -26,8 +19,18 @@ const { TextArea } = Input
 const DRAFT_RESTORED_MESSAGE_KEY = 'publish-draft-restored'
 const VALID_POST_TYPES = new Set<ItemPostType>(['失物', '招领'])
 const VALID_CAMPUS = new Set<PostCampus>(CAMPUS_OPTIONS.map(option => option.value))
-const VALID_TIME_RANGE = new Set<TimeRangeValue>(TIME_RANGE_OPTIONS.map(option => option.value))
-const VALID_STATUS = new Set<ItemStatus>(STATUS_OPTIONS.map(option => option.value))
+const OTHER_ITEM_TYPE_LABEL = '其它'
+
+function normalizeItemTypeValues(values: string[]) {
+  return Array.from(
+    new Set(
+      values
+        .map(value => value.trim())
+        .filter(Boolean)
+        .filter(value => value !== ITEM_TYPE_OTHER_VALUE),
+    ),
+  )
+}
 
 function toStringArray(value: unknown) {
   if (!Array.isArray(value))
@@ -40,7 +43,7 @@ function toOptionalString(value: unknown) {
   return typeof value === 'string' ? value : undefined
 }
 
-function toDateTimeLocalValue(value?: string) {
+function toDateValue(value?: string) {
   if (!value)
     return undefined
 
@@ -49,7 +52,7 @@ function toDateTimeLocalValue(value?: string) {
     return undefined
 
   const pad = (input: number) => String(input).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 function toIsoDateText(value?: string) {
@@ -64,23 +67,6 @@ function toPostPublishType(postType: ItemPostType): PostPublishType {
   return postType === '招领' ? 'FOUND' : 'LOST'
 }
 
-function resolveItemTypeFields(itemTypeValue: string, presetTypes: string[]) {
-  const normalized = itemTypeValue.trim()
-  const isPresetType = presetTypes.includes(normalized)
-
-  if (isPresetType) {
-    return {
-      item_type: normalized,
-      item_type_other: '',
-    }
-  }
-
-  return {
-    item_type: '其它',
-    item_type_other: normalized,
-  }
-}
-
 function isFormValidationError(error: unknown): error is { errorFields: unknown[] } {
   return typeof error === 'object' && error !== null && 'errorFields' in error
 }
@@ -92,25 +78,11 @@ function toOptionalPostType(value: unknown) {
   return VALID_POST_TYPES.has(value as ItemPostType) ? (value as ItemPostType) : undefined
 }
 
-function toOptionalTimeRange(value: unknown) {
-  if (typeof value !== 'string')
-    return undefined
-
-  return VALID_TIME_RANGE.has(value as TimeRangeValue) ? (value as TimeRangeValue) : undefined
-}
-
 function toOptionalCampus(value: unknown) {
   if (typeof value !== 'string')
     return undefined
 
   return VALID_CAMPUS.has(value as PostCampus) ? (value as PostCampus) : undefined
-}
-
-function toOptionalStatus(value: unknown) {
-  if (typeof value !== 'string')
-    return undefined
-
-  return VALID_STATUS.has(value as ItemStatus) ? (value as ItemStatus) : undefined
 }
 
 function readDraft() {
@@ -131,8 +103,6 @@ function readDraft() {
       campus: toOptionalCampus(parsed.campus),
       itemType: toOptionalString(parsed.itemType),
       location: toOptionalString(parsed.location),
-      timeRange: toOptionalTimeRange(parsed.timeRange),
-      status: toOptionalStatus(parsed.status),
       itemName: toOptionalString(parsed.itemName),
       occurredAt: toOptionalString(parsed.occurredAt),
       features: toOptionalString(parsed.features),
@@ -170,8 +140,6 @@ function buildDraft(values: PublishFormValues, photos: string[]): PublishDraft {
     campus: values.campus,
     itemType: values.itemType,
     location: values.location,
-    timeRange: values.timeRange,
-    status: values.status,
     itemName: values.itemName,
     occurredAt: values.occurredAt,
     features: values.features,
@@ -189,8 +157,6 @@ function isDraftEmpty(draft: PublishDraft) {
     || draft.campus
     || draft.itemType
     || draft.location
-    || draft.timeRange
-    || draft.status
     || draft.itemName
     || draft.occurredAt
     || draft.features
@@ -207,12 +173,12 @@ function PublishPage() {
   const publishPostMutation = usePublishPostMutation()
   const publicConfigQuery = usePublicConfigQuery()
 
-  const [otherTypeOpen, setOtherTypeOpen] = useState(false)
-  const [otherTypeInput, setOtherTypeInput] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [draftReady, setDraftReady] = useState(false)
+  const [otherItemTypeInput, setOtherItemTypeInput] = useState('')
+  const [otherItemTypeMode, setOtherItemTypeMode] = useState(false)
 
   const watchedValues = Form.useWatch([], form) as PublishFormValues | undefined
   const postType = Form.useWatch('postType', form)
@@ -220,13 +186,9 @@ function PublishPage() {
   const hasReward = Form.useWatch('hasReward', form)
   const itemType = Form.useWatch('itemType', form)
   const location = Form.useWatch('location', form)
-  const timeRange = Form.useWatch('timeRange', form)
-  const status = Form.useWatch('status', form)
 
   const baseItemTypeOptions = useMemo(() => {
-    const itemTypes = (publicConfigQuery.data?.itemTypes || [])
-      .map(type => type.trim())
-      .filter(Boolean)
+    const itemTypes = normalizeItemTypeValues(publicConfigQuery.data?.itemTypes || [])
     if (!itemTypes.length)
       return ITEM_TYPE_OPTIONS
 
@@ -236,26 +198,23 @@ function PublishPage() {
     }))
   }, [publicConfigQuery.data?.itemTypes])
 
-  const baseItemTypeValues = useMemo(
+  const presetItemTypeValues = useMemo(
     () => baseItemTypeOptions.map(option => option.value),
     [baseItemTypeOptions],
   )
 
-  const hasCustomItemType = useMemo(
-    () => !!itemType && !baseItemTypeOptions.some(option => option.value === itemType),
-    [baseItemTypeOptions, itemType],
+  const itemTypeOptions = useMemo(
+    () => [...baseItemTypeOptions, { label: OTHER_ITEM_TYPE_LABEL, value: ITEM_TYPE_OTHER_VALUE }],
+    [baseItemTypeOptions],
   )
 
-  const itemTypeOptions = useMemo(() => {
-    if (!hasCustomItemType || !itemType)
-      return [...baseItemTypeOptions, { label: '其它', value: ITEM_TYPE_OTHER_VALUE }]
+  const hasCustomItemType = useMemo(
+    () => !!itemType && !presetItemTypeValues.includes(itemType),
+    [itemType, presetItemTypeValues],
+  )
 
-    return [
-      { label: `其它：${itemType}`, value: itemType },
-      ...baseItemTypeOptions,
-      { label: '其它', value: ITEM_TYPE_OTHER_VALUE },
-    ]
-  }, [baseItemTypeOptions, hasCustomItemType, itemType])
+  const showOtherItemTypeInput = otherItemTypeMode || hasCustomItemType
+  const itemTypeSelectValue = showOtherItemTypeInput ? ITEM_TYPE_OTHER_VALUE : itemType
 
   useEffect(() => {
     const draft = readDraft()
@@ -268,7 +227,7 @@ function PublishPage() {
 
     form.setFieldsValue({
       ...draft,
-      occurredAt: toDateTimeLocalValue(draft.occurredAt),
+      occurredAt: toDateValue(draft.occurredAt),
     })
     queueMicrotask(() => {
       setPhotos(draft.photos)
@@ -299,39 +258,13 @@ function PublishPage() {
       form.setFieldValue('rewardRemark', undefined)
   }, [form, hasReward])
 
-  const handleItemTypeChange = (value?: string) => {
-    setSubmitted(false)
-
-    if (!value) {
-      form.setFieldValue('itemType', undefined)
+  useEffect(() => {
+    if (!itemType || presetItemTypeValues.includes(itemType))
       return
-    }
 
-    if (value === ITEM_TYPE_OTHER_VALUE) {
-      setOtherTypeInput(hasCustomItemType && itemType ? itemType : '')
-      setOtherTypeOpen(true)
-      return
-    }
-
-    form.setFieldValue('itemType', value)
-  }
-
-  const handleConfirmOtherType = () => {
-    const nextType = otherTypeInput.trim()
-    if (!nextType) {
-      message.warning('请先输入其它物品类型')
-      return
-    }
-
-    form.setFieldValue('itemType', nextType)
-    setSubmitted(false)
-    setOtherTypeOpen(false)
-  }
-
-  const handleCancelOtherType = () => {
-    setOtherTypeInput('')
-    setOtherTypeOpen(false)
-  }
+    setOtherItemTypeMode(true)
+    setOtherItemTypeInput(itemType)
+  }, [itemType, presetItemTypeValues])
 
   const handleReset = () => {
     Modal.confirm({
@@ -343,7 +276,8 @@ function PublishPage() {
         form.resetFields()
         setPhotos([])
         setSubmitted(false)
-        setOtherTypeInput('')
+        setOtherItemTypeMode(false)
+        setOtherItemTypeInput('')
         clearDraft()
       },
     })
@@ -361,17 +295,17 @@ function PublishPage() {
 
       setSubmitting(true)
       const itemTypeValue = (values.itemType ?? '').trim()
-      const itemTypeFields = resolveItemTypeFields(itemTypeValue, baseItemTypeValues)
       const resolvedPostType = values.postType as ItemPostType
+      const normalizedLocation = (values.location ?? '').trim()
+      const storageLocation = normalizedLocation
 
       await publishPostMutation.mutateAsync({
         publish_type: toPostPublishType(resolvedPostType),
         item_name: (values.itemName ?? '').trim(),
-        item_type: itemTypeFields.item_type,
-        item_type_other: itemTypeFields.item_type_other,
+        item_type: itemTypeValue,
         campus: values.campus as PostCampus,
-        location: (values.location ?? '').trim(),
-        storage_location: (values.location ?? '').trim(),
+        location: normalizedLocation,
+        storage_location: storageLocation,
         event_time: toIsoDateText(values.occurredAt),
         features: (values.features ?? '').trim(),
         contact_name: (values.contactName ?? '').trim(),
@@ -385,6 +319,8 @@ function PublishPage() {
       setSubmitted(true)
       form.resetFields()
       setPhotos([])
+      setOtherItemTypeMode(false)
+      setOtherItemTypeInput('')
       clearDraft()
     }
     catch (error) {
@@ -432,32 +368,53 @@ function PublishPage() {
 
             <PublishFilters
               campus={campus}
-              itemType={itemType}
+              itemType={itemTypeSelectValue}
               location={location}
-              timeRange={timeRange}
-              status={status}
               campusOptions={CAMPUS_OPTIONS}
               itemTypeOptions={itemTypeOptions}
-              timeRangeOptions={TIME_RANGE_OPTIONS}
-              statusOptions={STATUS_OPTIONS}
               onCampusChange={(value) => {
                 setSubmitted(false)
                 form.setFieldValue('campus', value)
               }}
-              onItemTypeChange={handleItemTypeChange}
+              onItemTypeChange={(value) => {
+                setSubmitted(false)
+                if (value === ITEM_TYPE_OTHER_VALUE) {
+                  setOtherItemTypeMode(true)
+                  setOtherItemTypeInput(hasCustomItemType && itemType ? itemType : '')
+                  if (!hasCustomItemType)
+                    form.setFieldValue('itemType', undefined)
+                  return
+                }
+
+                setOtherItemTypeMode(false)
+                setOtherItemTypeInput('')
+                form.setFieldValue('itemType', value)
+              }}
               onLocationChange={(value) => {
                 setSubmitted(false)
                 form.setFieldValue('location', value)
               }}
-              onTimeRangeChange={(value) => {
-                setSubmitted(false)
-                form.setFieldValue('timeRange', value)
-              }}
-              onStatusChange={(value) => {
-                setSubmitted(false)
-                form.setFieldValue('status', value)
-              }}
             />
+            {showOtherItemTypeInput && (
+              <Form.Item
+                label="其它类型说明"
+                className="!mb-0"
+                required
+              >
+                <Input
+                  value={otherItemTypeInput}
+                  maxLength={20}
+                  showCount
+                  placeholder="请输入其它物品类型（最多20字）"
+                  onChange={(event) => {
+                    setSubmitted(false)
+                    const nextValue = event.target.value
+                    setOtherItemTypeInput(nextValue)
+                    form.setFieldValue('itemType', nextValue || undefined)
+                  }}
+                />
+              </Form.Item>
+            )}
 
             <Form.Item
               name="campus"
@@ -469,32 +426,20 @@ function PublishPage() {
             <Form.Item
               name="itemType"
               hidden
-              rules={[{ required: true, message: '请选择物品类型' }]}
+              rules={[
+                { required: true, message: '请选择或输入物品类型' },
+                { max: 20, message: '物品类型最多 20 个字符' },
+              ]}
             >
               <Input />
             </Form.Item>
             <Form.Item
               name="location"
               hidden
-              rules={[{ required: true, message: '请选择丢失/拾取地点' }]}
+              rules={[{ required: true, message: '请输入丢失/拾取地点' }]}
             >
               <Input />
             </Form.Item>
-            <Form.Item
-              name="timeRange"
-              hidden
-              rules={[{ required: true, message: '请选择时间范围' }]}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              name="status"
-              hidden
-              rules={[{ required: true, message: '请选择物品状态' }]}
-            >
-              <Input />
-            </Form.Item>
-
             <Flex gap={8} wrap>
               <Form.Item
                 name="itemName"
@@ -503,21 +448,21 @@ function PublishPage() {
                 rules={[{ required: true, message: '请输入物品名称' }]}
               >
                 <Input
-                  maxLength={30}
+                  maxLength={50}
                   placeholder="请输入物品名称"
                 />
               </Form.Item>
 
               <Form.Item
                 name="occurredAt"
-                label="丢失/拾取时间"
+                label="丢失/拾取日期"
                 className="!mb-0 w-full md:w-[calc(50%-4px)]"
-                rules={[{ required: true, message: '请选择丢失/拾取时间' }]}
+                rules={[{ required: true, message: '请选择丢失/拾取日期' }]}
               >
                 <Input
-                  type="datetime-local"
+                  type="date"
                   className="w-full"
-                  placeholder="请选择时间"
+                  placeholder="请选择日期"
                 />
               </Form.Item>
             </Flex>
@@ -530,7 +475,7 @@ function PublishPage() {
             >
               <TextArea
                 rows={4}
-                maxLength={200}
+                maxLength={255}
                 showCount
                 placeholder="请输入可识别的外观、贴纸、划痕等特征"
               />
@@ -544,7 +489,7 @@ function PublishPage() {
                 rules={[{ required: true, message: '请输入联系人姓名' }]}
               >
                 <Input
-                  maxLength={20}
+                  maxLength={30}
                   placeholder="请输入联系人"
                 />
               </Form.Item>
@@ -555,6 +500,7 @@ function PublishPage() {
                 className="!mb-0 w-full md:w-[calc(50%-4px)]"
                 rules={[
                   { required: true, message: '请输入联系电话' },
+                  { min: 5, message: '联系电话至少 5 位' },
                   { pattern: CONTACT_PHONE_PATTERN, message: '请输入正确的手机号或电话' },
                 ]}
               >
@@ -585,8 +531,8 @@ function PublishPage() {
                 className="!mb-0"
               >
                 <Input
-                  maxLength={30}
-                  placeholder="例如：酬谢50元 / 现金答谢"
+                  maxLength={255}
+                  placeholder="请输入悬赏说明（最多255字）"
                 />
               </Form.Item>
             )}
@@ -639,14 +585,6 @@ function PublishPage() {
           </Flex>
         </Form>
       </Card>
-
-      <OtherTypeModal
-        open={otherTypeOpen}
-        value={otherTypeInput}
-        onChange={setOtherTypeInput}
-        onCancel={handleCancelOtherType}
-        onConfirm={handleConfirmOtherType}
-      />
     </Flex>
   )
 }

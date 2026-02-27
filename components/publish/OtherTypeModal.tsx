@@ -30,12 +30,12 @@ function OtherTypeModal({
       <Flex vertical gap={8}>
         <Input
           value={value}
-          maxLength={20}
-          placeholder="请输入物品类型（最多20字）"
+          maxLength={15}
+          placeholder="请输入物品类型（最多15字）"
           onChange={event => onChange(event.target.value)}
         />
         <Flex justify="end" className="text-xs text-blue-900/50">
-          <Text className="text-xs text-blue-900/50">{`${value.length} / 20`}</Text>
+          <Text className="text-xs text-blue-900/50">{`${value.length} / 15`}</Text>
         </Flex>
       </Flex>
     </Modal>
