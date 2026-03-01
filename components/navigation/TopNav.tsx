@@ -11,6 +11,7 @@ import AnnouncementModal from './AnnouncementModal'
 const { Title } = Typography
 
 const NAV_ITEMS: NavItem[] = [
+  { key: 'agent', label: '智能查询', path: '/agent' },
   { key: 'query', label: '查询信息', path: '/query' },
   { key: 'publish', label: '发布信息', path: '/publish' },
   { key: 'my-posts', label: '我的发布', path: '/my-posts' },

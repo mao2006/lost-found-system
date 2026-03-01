@@ -1,3 +1,4 @@
+import type { AgentHistoryParams } from '@/api/modules/agent'
 import type { AnnouncementListParams } from '@/api/modules/announcement'
 import type { FeedbackListParams } from '@/api/modules/feedback'
 import type { LostFoundListParams, MyPostListParams } from '@/api/modules/lostFound'
@@ -16,6 +17,7 @@ const POST_ROOT_KEY = ['post'] as const
 const CLAIM_ROOT_KEY = ['claim'] as const
 const PUBLIC_ROOT_KEY = ['public'] as const
 const ANNOUNCEMENT_ROOT_KEY = ['announcement'] as const
+const AGENT_ROOT_KEY = ['agent'] as const
 
 export const queryKeys = {
   lostFound: {
@@ -45,6 +47,12 @@ export const queryKeys = {
     lists: () => [...ANNOUNCEMENT_ROOT_KEY, 'list'] as const,
     list: (params: AnnouncementListParams = {}) =>
       [...ANNOUNCEMENT_ROOT_KEY, 'list', removeEmptyFields(params)] as const,
+  },
+  agent: {
+    all: AGENT_ROOT_KEY,
+    sessions: () => [...AGENT_ROOT_KEY, 'sessions'] as const,
+    history: (params: AgentHistoryParams) =>
+      [...AGENT_ROOT_KEY, 'history', removeEmptyFields(params)] as const,
   },
   post: {
     all: POST_ROOT_KEY,
