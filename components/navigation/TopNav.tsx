@@ -39,7 +39,7 @@ function TopNav() {
       icon: <ExclamationCircleFilled />,
       onOk: () => {
         clearLoginSession()
-        message.success('已退出登录（演示）')
+        message.success('已退出登录')
         router.push('/login')
       },
     })

@@ -76,7 +76,7 @@ function LoginPage() {
 
           if (result.need_update) {
             setNeedUpdateAfterLogin(true)
-            message.warning('登录成功，请点击下方“忘记密码”完成改密')
+            message.warning('登录成功，请点击下方“修改密码”完成改密')
             return
           }
 
@@ -190,7 +190,7 @@ function LoginPage() {
                   className="!px-0"
                   onClick={() => setPasswordModalOpen(true)}
                 >
-                  忘记密码
+                  修改密码
                 </Button>
               </Flex>
             </Form>
